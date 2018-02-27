@@ -1,0 +1,138 @@
+public class GetPlaceDetails{
+    /**
+     * A class, to download Google Place Details
+     */
+    private class PlacesTask extends AsyncTask<String, Integer, String> {
+
+        String data = null;
+
+        // Invoked by execute() method of this object
+        @Override
+        protected String doInBackground(String... url) {
+            Log.d("Line", "534");
+            try {
+                data = downloadUrl(url[0]);
+            } catch (Exception e) {
+                Log.d("Background Task", e.toString());
+            }
+            return data;
+        }
+
+        // Executed after the complete execution of doInBackground() method
+        @Override
+        protected void onPostExecute(String result) {
+            ParserTask parserTask = new ParserTask();
+
+            // Start parsing the Google place details in JSON format
+            // Invokes the "doInBackground()" method of the class ParseTask
+            parserTask.execute(result);
+            Log.d("Line", "550");
+        }
+    }
+
+    /**
+     * A class to parse the Google Place Details in JSON format
+     */
+    private class ParserTask extends AsyncTask<String, Integer, HashMap<String, String>> {
+
+        JSONObject jObject;
+
+        // Invoked by execute() method of this object
+        @Override
+        protected HashMap<String, String> doInBackground(String... jsonData) {
+            Log.d("Line", "562");
+            HashMap<String, String> hPlaceDetails = null;
+            PlaceDetailsJSONParser placeDetailsJsonParser = new PlaceDetailsJSONParser();
+
+            try {
+                jObject = new JSONObject(jsonData[0]);
+
+                // Start parsing Google place details in JSON format
+                hPlaceDetails = placeDetailsJsonParser.parse(jObject);
+
+            } catch (Exception e) {
+                Log.d("Exception", e.toString());
+            }
+            return hPlaceDetails;
+        }
+
+        // Executed after the complete execution of doInBackground() method
+        @Override
+        protected void onPostExecute(HashMap<String, String> hPlaceDetails) {
+
+            String name = hPlaceDetails.get("name");
+            String lat = hPlaceDetails.get("lat");
+            String lng = hPlaceDetails.get("lng");
+            LatLng user = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
+            InputMethodManager inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            inputManager.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+            if (searchTextEntered) {
+                navigationViewSetVisibility(View.VISIBLE);
+                activityMapsBinding.sourceText.setText(name);
+                searchedSourceLocation = user;
+                searchedStartPoint = new LatLng(searchedSourceLocation.latitude, searchedSourceLocation.longitude);
+                searchTextEntered = false;
+            } else if (destinationTextEntered) {
+                navigationViewSetVisibility(View.VISIBLE);
+                activityMapsBinding.destinationText.setText(name);
+                destinationLocation = user;
+                destinationPoint = new LatLng(destinationLocation.latitude, destinationLocation.longitude);
+                destinationTextEntered = false;
+            }
+            Log.d("getRoad", String.valueOf(user));
+                        /*used marker for show the location */
+            //mMap.clear();
+                /*Marker hamburg = mMap.addMarker(new MarkerOptions()
+                        .position(user)
+                        .title(str.toString())
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.b_pin)));*/
+            LatLng latLong;
+            latLong = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
+            CameraPosition cameraPosition = new CameraPosition.Builder()
+                    .target(latLong).zoom(17f).build();
+            mMap.animateCamera(CameraUpdateFactory
+                    .newCameraPosition(cameraPosition));
+            Log.d("Line", "613");
+        }
+    }
+
+    /**
+     * A method to download json data from url
+     */
+    private String downloadUrl(String strUrl) throws IOException {
+        String data = "";
+        InputStream iStream = null;
+        HttpURLConnection urlConnection = null;
+        try {
+            URL url = new URL(strUrl);
+
+            // Creating an http connection to communicate with url
+            urlConnection = (HttpURLConnection) url.openConnection();
+
+            // Connecting to url
+            urlConnection.connect();
+
+            // Reading data from url
+            iStream = urlConnection.getInputStream();
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
+
+            StringBuffer sb = new StringBuffer();
+
+            String line = "";
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+
+            data = sb.toString();
+            br.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            iStream.close();
+            urlConnection.disconnect();
+        }
+        return data;
+    }
+}
